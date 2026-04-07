@@ -1,10 +1,12 @@
 name: smart-grid-demand-response
-version: "1.0.0"
+version: "2.0.0"
 description: >
   The first demand response RL environment designed specifically for LLM agents.
-  Features natural-language situation reports, cascading failure mechanics, and 
-  ethical decision-making constraints in an Indian city power grid.
-tags: [openenv, energy, demand-response, grid, llm, india]
+  Features natural-language situation reports, cascading failure mechanics,
+  Battery Energy Storage System (BESS), India-specific time-of-use pricing,
+  dynamic per-load demand profiles, and ethical decision-making constraints
+  in an Indian city power grid (Delhi-inspired).
+tags: [openenv, energy, demand-response, grid, llm, india, battery, renewables]
 runtime: fastapi
 app: server.app:app
 port: 7860
@@ -14,17 +16,40 @@ tasks:
   - name: peak_survival
     difficulty: easy
     description: Survive a 3-hour evening peak (5pm–8pm) without a blackout.
+
   - name: daily_balance
     difficulty: medium
     description: Balance the grid over a 24-hour day while minimizing customer discomfort.
+
   - name: extreme_event
     difficulty: hard
     description: Handle a 48-hour heatwave crisis. Requires balancing stability, cost, and fairness.
 
-# High-level overview for the OpenEnv CLI
+  - name: monsoon_crisis
+    difficulty: medium-hard
+    description: >
+      Survive a 24-hour monsoon storm. Solar is near zero, wind is erratic.
+      Manage the battery wisely — charge during wind spikes, discharge when wind dies.
+
+  - name: renewable_transition
+    difficulty: expert
+    description: >
+      3-day simulation with 30% less thermal capacity (simulating coal plant retirement).
+      Rely on renewables + battery + smart curtailment across day-night cycles.
+      Fairness and cascading failure avoidance are strictly graded.
+
+# Observation & Action space descriptions
 observation_space: >
-  A rich JSON object containing time, weather (temp, condition), grid health (Hz, alerts), 
-  supply/demand metrics, and a 'situation_report' string for LLM reasoning.
+  A rich JSON object containing time context (hour, day), weather (temp, condition),
+  grid health (frequency Hz, alert level), supply/demand metrics, battery state of charge,
+  cascading failure status (tripped_loads, low_freq_consecutive_steps),
+  per-load dynamic demand and curtailment status, India TOU pricing,
+  and a 'situation_report' natural-language strategic briefing for LLM reasoning.
+
 action_space: >
-  A JSON dictionary of {load_id: mw_to_curtail}. Example: {"steel_plant": 15.2, "office_complex": 5.0}
-reward_range: [-100.0, 10.0]
+  A JSON object with two components:
+  1. curtailments: {load_id: mw_to_curtail} — reduce specific load demand
+  2. battery_action: "charge" | "discharge" | "idle" + battery_mw: 0-25
+  Example: {"curtailments": {"steel_plant": 20.0}, "battery_action": "discharge", "battery_mw": 15.0}
+
+reward_range: [0.0, 1.0]

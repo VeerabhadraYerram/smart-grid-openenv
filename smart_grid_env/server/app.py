@@ -25,7 +25,7 @@ def custom_gradio_ui(web_manager, action_fields, metadata, is_chat_env, title, q
         
         with gr.Row():
             task_choice = gr.Dropdown(
-                choices=["peak_survival", "daily_balance", "extreme_event"],
+                choices=["peak_survival", "daily_balance", "extreme_event", "monsoon_crisis", "renewable_transition"],
                 value="peak_survival",
                 label="Select Scenario Task"
             )
