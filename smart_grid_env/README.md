@@ -7,43 +7,32 @@ sdk: docker
 pinned: false
 ---
 
-# Smart Grid Demand Response (OpenEnv)
+# ⚡ Smart Grid Demand Response (OpenEnv)
 
-> **First demand response reinforcement learning environment designed specifically for LLM agents.**
+> **The first demand response reinforcement learning environment natively designed for LLM Agents.**
 
-Instead of flat numerical arrays (e.g. `[50.2, 280.3, ...]`), this environment provides agents with **natural language situation reports** alongside deep grid mechanics: cascading failures, time-of-use pricing, Indian climatic conditions, and battery energy storage (BESS) management.
+Instead of outputting simple 1D float arrays to the agent, this environment serves a **natural language situation report**, requiring advanced Agentic reasoning to manage cascading grid failures, time-of-use pricing, localized weather systems, and Battery Energy Storage (BESS).
 
-## 🚀 Quick Start
+---
 
-### Local Development
-```bash
-# Clone and install dependencies
-pip install openenv-core[core]
-pip install -e .
+## 🏆 Judge's Grading Guide
+Welcome to the Smart Grid Control Room! If you are reviewing this space for Phase 3 (Human Review), here is the fastest way to test our core physics and ethical constraints:
 
-# Run the environment and interactive web UI
-openenv serve . --port 7860
-```
-Open [http://localhost:7860](http://localhost:7860) to view the Smart Grid Control Room.
+*   **1. Trigger a Cascading Blackout (The Math works!)**
+    Play the **`extreme_event`** task. Do absolutely nothing (leave curtailments blank) and click **Step**. Within 2 steps, the grid frequency will plummet below 49.0Hz, automatically triggering catastrophic cascading logic that permanently trips industrial loads to save the city. Unintelligent agents mathematically receive a `0.00` score here!
+*   **2. Read the LLM-Native Situation Report**
+    Play the **`monsoon_crisis`** task. Look at the `observation.situation_report`. Notice how the text dynamically reflects the chaotic weather and the severe drop in solar power. We built this environment specifically so LLMs could 'read' the grid.
+*   **3. Violate the Ethical Constraints**
+    Try explicitly typing `12` into the Hospital curtailment box. When the episode resolves, look at your grade. Our strict ethical grader heavily penalizes any agent that sacrifices critical infrastructure (Hospitals/Metro) over commercial targets, dramatically lowering the score.
 
-### Run tests
-```bash
-python test_env.py
-```
+---
 
-### Docker
-```bash
-docker build -t smart-grid-openenv .
-docker run -p 7860:7860 smart-grid-openenv
-```
+## 🧠 Core Features
 
-## 🧠 Core Mechanics
-
-- **Observation**: Read a rich Markdown `situation_report` explaining grid frequency, cascading warnings, and weather effects.
-- **Action**: Provide a JSON containing `{ "load_id": mb_to_curtail }` and battery management instructions.
-- **Physics Engine**: Realistic frequency decay based on supply/demand imbalance. Dropping below 49.2Hz starts an automated cascade.
-- **BESS**: A utility-scale 50MWh battery that the agent can charge during off-peak hours and discharge during emergencies.
-- **Dynamic Demand**: Bottom-up load synthesis using industrial/residential profiles responsive to heatwaves/monsoons.
+- **Cascading Failure Risk**: Frequency thresholds strictly enforce action. Drops below 49.2Hz trigger automated grid load-shedding cascades.
+- **Battery Energy Storage**: A 50MWh BESS allowing LLM agents to plan ahead (charge during off-peak, discharge during peak).
+- **Dynamic Demand Profiles**: 10 Unique commercial, industrial, and residential profiles scaling dynamically with underlying heatwave/climate variables.
+- **Strict Compliance**: 100% compliant with OpenEnv automated tools. Phase 2 Inference script utilizes strict prompt separation to easily guide open-source LLMs to high baseline scores, proving solvability.
 
 ## 📊 Environment Tasks
 
@@ -54,9 +43,3 @@ docker run -p 7860:7860 smart-grid-openenv
 | `extreme_event` | Hard | 48 steps | 48h heatwave: fairness constraints + protect critical infrastructure. |
 | `monsoon_crisis` | Med-Hard | 24 steps | Solar near zero, erratic wind. Aggressive battery management required. |
 | `renewable_transition` | Expert | 72 steps | 3-day multi-cycle episode. Thermal supply reduced by 30%. |
-
-## 📐 Hackathon Notes
-
-- Runs fully compliant with OpenEnv APIs (`reset`, `step`, and `grade()`).
-- Graders return varied strings between `0.0` (miserable failure) and `1.0` (perfect performance).
-- Passes all strict `openenv validate` checks and deploys smoothly via Docker to Hugging Face spaces.
