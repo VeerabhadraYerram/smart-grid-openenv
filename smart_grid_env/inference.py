@@ -50,16 +50,29 @@ def run_episode(task_name: str) -> float:
             ]
         )
 
-        prompt = f"""You are an AI Dispatcher. Focus on keeping grid frequency at 50Hz and avoiding critical load curtailment.
+        system_prompt = """You are a Master AI Smart Grid Dispatcher.
+Your goal is to maximize stability (50Hz) while minimizing cost and discomfort.
+RULES:
+1. If frequency < 49.8Hz, supply is critically low. You MUST curtail low/medium priority loads (steel_plant, cement_factory) or discharge the battery.
+2. If frequency > 50.1Hz, supply is high. You MUST charge the battery to store the surplus.
+3. NEVER curtail critical loads (hospital, metro_rail) unless absolutely necessary to avoid blackout (48.5Hz).
+4. Battery max rate is 25MW.
+Respond ONLY in valid JSON. Example:
+{"curtailments": {"steel_plant": 15.0}, "battery_action": "discharge", "battery_mw": 20.0}"""
+
+        user_prompt = f"""=== CURRENT STATE ===
 SITUATION: {obs.situation_report}
-LOADS: {loads_summary}
-BATTERY: {obs.battery_soc_pct:.1f}% SOC. Max rate 25MW.
-Respond ONLY in JSON. Example: {{"curtailments": {{"steel_plant": 10.0}}, "battery_action": "discharge", "battery_mw": 15.0}}"""
+GRID FREQ: {obs.grid_frequency_hz} Hz
+BATTERY SOC: {obs.battery_soc_pct:.1f}%
+LOADS: {loads_summary}"""
 
         try:
             response = client.chat.completions.create(
                 model=MODEL,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
                 max_tokens=400,
                 response_format={"type": "json_object"},
             )
