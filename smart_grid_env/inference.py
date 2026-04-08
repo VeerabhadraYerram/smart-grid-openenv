@@ -5,9 +5,7 @@ A simple baseline that uses an LLM to control the grid.
 Uses the 'situation_report' from observations for zero-shot reasoning.
 
 Phase 2 update:
-- Fixed: step() now returns Observation directly (not a StepResult)
-- Added: battery_action prompting and response parsing
-- Added: all 5 tasks to the evaluation loop
+- Strictly adheres to mandatory STDOUT logging format ([START], [STEP], [END]).
 """
 
 import os
@@ -17,7 +15,7 @@ from server.grid_env import SmartGridEnv
 from models import Action
 
 
-# Configure the client (pointing to HF Spaces or a local API if needed)
+# Configure the client
 client = OpenAI(
     base_url=os.environ.get("API_BASE_URL", "https://api.openai.com/v1"),
     api_key=os.environ.get("HF_TOKEN", "dummy_key")
@@ -26,63 +24,38 @@ MODEL = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
 
 
 def run_episode(task_name: str) -> float:
-    """Run one full episode with the LLM agent and return the final grade."""
+    """Run one full episode with the LLM agent using strict STDOUT logging."""
     env = SmartGridEnv()
-    obs = env.reset(task_name=task_name)   # obs is an Observation directly
-    total_reward = 0.0
+    obs = env.reset(task_name=task_name)
+    
+    rewards = []
     step_count = 0
-
-    print(f"\n--- Starting Episode: {task_name} ---")
+    success = False
+    
+    # [START] mandatory stdout
+    print(f"[START] task={task_name} env=smart-grid-demand-response model={MODEL}", flush=True)
 
     while True:
-        # 1. Build prompt from the situation_report
+        # Build prompt from the situation_report
         loads_summary = json.dumps(
             [
                 {
                     "id": l["id"],
-                    "name": l["name"],
                     "current_mw": l["current_mw"],
                     "max_reducible_mw": l["reducible_mw"],
                     "priority": l["priority"],
                     "tripped": l.get("tripped", False),
                 }
                 for l in obs.loads
-            ],
-            indent=2,
+            ]
         )
 
-        prompt = f"""You are an AI Smart Grid Dispatcher for an Indian city power grid.
-Your goal: maintain grid frequency at 50Hz, protect critical infrastructure (hospital, metro),
-and minimize customer discomfort and curtailment cost.
+        prompt = f"""You are an AI Dispatcher. Focus on keeping grid frequency at 50Hz and avoiding critical load curtailment.
+SITUATION: {obs.situation_report}
+LOADS: {loads_summary}
+BATTERY: {obs.battery_soc_pct:.1f}% SOC. Max rate 25MW.
+Respond ONLY in JSON. Example: {{"curtailments": {{"steel_plant": 10.0}}, "battery_action": "discharge", "battery_mw": 15.0}}"""
 
-=== SITUATION REPORT ===
-{obs.situation_report}
-
-=== CONTROLLABLE LOADS ===
-{loads_summary}
-
-=== BATTERY ===
-State of Charge: {obs.battery_soc_pct:.1f}% ({obs.battery_hours_remaining:.1f}h at max rate)
-Max rate: 25MW. Use 'charge' to store surplus energy, 'discharge' to release stored energy.
-
-=== CASCADING RISK ===
-Tripped loads (offline): {obs.tripped_loads}
-Consecutive low-freq steps (cascade at 2): {obs.low_freq_consecutive_steps}
-
-INSTRUCTIONS:
-- Analyze the supply-demand balance and frequency.
-- Curtail LOW and MEDIUM priority loads first. NEVER curtail 'critical' loads.
-- Use the battery strategically: discharge if there's a deficit, charge if there's surplus.
-- If frequency < 49.2Hz for 2 consecutive steps, loads will auto-disconnect!
-
-Respond ONLY with valid JSON:
-{{"curtailments": {{"load_id": mw_to_reduce}}, "battery_action": "idle", "battery_mw": 0.0}}
-
-battery_action must be one of: "charge", "discharge", "idle"
-battery_mw must be between 0 and 25.
-"""
-
-        # 2. Get LLM response
         try:
             response = client.chat.completions.create(
                 model=MODEL,
@@ -93,35 +66,46 @@ battery_mw must be between 0 and 25.
             content = response.choices[0].message.content
             action_dict = json.loads(content)
 
-            # Normalize response structure
             if "curtailments" not in action_dict:
                 action_dict = {"curtailments": action_dict}
-            # Ensure battery fields exist
             action_dict.setdefault("battery_action", "idle")
             action_dict.setdefault("battery_mw", 0.0)
 
             action = Action(**action_dict)
+            action_str = json.dumps(action_dict, separators=(",", ":"))
+            error_msg = "null"
         except Exception as e:
-            print(f"  ⚠️  Parse error: {e}. Using no-op action.")
             action = Action(curtailments={}, battery_action="idle", battery_mw=0.0)
+            action_str = "{}"
+            error_msg = f'"{str(e)}"'
 
-        # 3. Step the environment — returns Observation directly
+        # Step the environment
         obs = env.step(action)
-        total_reward += obs.reward
         step_count += 1
+        
+        # Format reward
+        reward_val = obs.reward if obs.reward is not None else 0.0
+        rewards.append(reward_val)
+        
+        done_str = "true" if obs.done else "false"
 
-        print(
-            f"  Step {step_count:3d} | Freq: {obs.grid_frequency_hz:.2f}Hz | "
-            f"Alert: {obs.alert_level:8s} | SOC: {obs.battery_soc_pct:.0f}% | "
-            f"Reward: {obs.reward:.3f} | Tripped: {obs.tripped_loads}"
-        )
+        # [STEP] mandatory stdout
+        print(f"[STEP] step={step_count} action={action_str} reward={reward_val:.2f} done={done_str} error={error_msg}", flush=True)
 
         if obs.done:
             break
 
-    # 4. Final grade
+    # Final grade
     final_score = env.grade()
-    print(f"  Grade: {final_score:.4f} | Total Reward: {total_reward:.3f}")
+    # Hackathon spec logic for 'success' (commonly score >= threshold, e.g., 0.5)
+    success = final_score >= 0.5
+    success_str = "true" if success else "false"
+    
+    rewards_str = ",".join([f"{r:.2f}" for r in rewards])
+    
+    # [END] mandatory stdout
+    print(f"[END] success={success_str} steps={step_count} score={final_score:.2f} rewards={rewards_str}", flush=True)
+    
     return final_score
 
 
@@ -133,14 +117,9 @@ if __name__ == "__main__":
         "monsoon_crisis",
         "renewable_transition",
     ]
-    scores = {}
     for task in tasks:
         try:
-            scores[task] = run_episode(task)
+            run_episode(task)
         except Exception as e:
-            print(f"Error running task {task}: {e}")
-            scores[task] = 0.0
-
-    print("\n--- SUMMARY OF BASELINE SCORES ---")
-    for task, score in scores.items():
-        print(f"{task.upper():<25} | Score: {score:.4f}")
+            # If a massive exception happens, log standard end to prevent crawler crash
+            print(f"[END] success=false steps=0 score=0.00 rewards=0.00", flush=True)

@@ -1,3 +1,12 @@
+---
+title: Smart Grid Demand Response
+emoji: ⚡
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # Smart Grid Demand Response (OpenEnv)
 
 > **First demand response reinforcement learning environment designed specifically for LLM agents.**
