@@ -15,12 +15,15 @@ from server.grid_env import SmartGridEnv
 from models import Action
 
 
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL = os.getenv("MODEL_NAME", "gpt-3.5-turbo")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
 # Configure the client
 client = OpenAI(
-    base_url=os.environ.get("API_BASE_URL", "https://api.openai.com/v1"),
-    api_key=os.environ.get("HF_TOKEN", "dummy_key")
+    base_url=API_BASE_URL,
+    api_key=HF_TOKEN,
 )
-MODEL = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
 
 
 def run_episode(task_name: str) -> float:
