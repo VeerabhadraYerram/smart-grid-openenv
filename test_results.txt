@@ -1,0 +1,31 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.5, pytest-9.0.3, pluggy-1.6.0 -- /Users/shivaniyerram/Desktop/Projects/Smart_Grid/smart-grid-openenv/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/shivaniyerram/Desktop/Projects/Smart_Grid/smart-grid-openenv/smart_grid_env
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.13.0
+collecting ... collected 18 items
+
+smart_grid_env/tests/test_app.py::test_api_info PASSED                   [  5%]
+smart_grid_env/tests/test_app.py::test_api_root PASSED                   [ 11%]
+smart_grid_env/tests/test_grid_env.py::test_grid_env_reset PASSED        [ 16%]
+smart_grid_env/tests/test_grid_env.py::test_grid_env_step_mechanics PASSED [ 22%]
+smart_grid_env/tests/test_grid_env.py::test_grid_env_rewards_and_grading PASSED [ 27%]
+smart_grid_env/tests/test_models.py::test_action_validation PASSED       [ 33%]
+smart_grid_env/tests/test_models.py::test_observation_defaults PASSED    [ 38%]
+smart_grid_env/tests/test_simulator.py::test_battery_storage PASSED      [ 44%]
+smart_grid_env/tests/test_simulator.py::test_grid_simulator_cascading_trips PASSED [ 50%]
+smart_grid_env/tests/test_simulator.py::test_grid_simulator_grace_period PASSED [ 55%]
+smart_grid_env/tests/test_simulator.py::test_tou_rates PASSED            [ 61%]
+smart_grid_env/tests/test_simulator.py::test_sim_curtailment PASSED      [ 66%]
+smart_grid_env/tests/test_tasks.py::test_task_initialization PASSED      [ 72%]
+smart_grid_env/tests/test_tasks.py::test_task_episode_duration PASSED    [ 77%]
+smart_grid_env/tests/test_tasks.py::test_graders_bounds PASSED           [ 83%]
+smart_grid_env/tests/test_weather.py::test_weather_engine_init PASSED    [ 88%]
+smart_grid_env/tests/test_weather.py::test_weather_effects PASSED        [ 94%]
+smart_grid_env/tests/test_weather.py::test_weather_advancement PASSED    [100%]
+WARNING: Failed to generate report: No data to report.
+
+
+
+============================== 18 passed in 1.94s ==============================

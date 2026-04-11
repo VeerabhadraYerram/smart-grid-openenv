@@ -47,10 +47,10 @@ class Observation(BaseModel):
         ge=0.0, le=100.0,
         description="Battery state of charge (0-100%)"
     )
-    battery_capacity_mwh: float = Field(default=50.0, description="Total battery capacity (MWh)")
+    battery_capacity_mwh: float = Field(default=100.0, description="Total battery capacity (MWh)")
     battery_hours_remaining: float = Field(
         default=1.0,
-        description="Hours of discharge available at max rate (25MW)"
+        description="Hours of discharge available at max rate (50MW)"
     )
 
     # ── Cascading Failures ──
@@ -113,7 +113,7 @@ class Action(BaseModel):
     Agent's demand response decision.
     
     - Curtail specific loads (reduce their MW draw)
-    - Optionally charge or discharge the 50MWh battery
+    - Optionally charge or discharge the 100MWh battery
     
     Example:
         {
@@ -136,6 +136,6 @@ class Action(BaseModel):
     battery_mw: float = Field(
         default=0.0,
         ge=0.0,
-        le=25.0,
-        description="MW to charge or discharge (max 25MW, min 0)"
+        le=50.0,
+        description="MW to charge or discharge (max 50MW, min 0)"
     )

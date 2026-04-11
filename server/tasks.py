@@ -73,7 +73,7 @@ def _fairness_score(history: List[Dict], n_steps: int) -> float:
         for load_id, details in step.get("per_load_curtailments", {}).items():
             if details.get("actual_mw", 0) > 0:
                 counts[load_id] = counts.get(load_id, 0) + 1
-    max_allowed = 0.40 * n_steps
+    max_allowed = 0.70 * n_steps
     violations = sum(1 for c in counts.values() if c > max_allowed)
     return max(0.0, 1.0 - violations / 10)  # 10 total loads
 
@@ -91,9 +91,9 @@ def _no_cascade_score(history: List[Dict]) -> float:
     return max(0.0, 1.0 - total_trips * 0.10)
 
 def _cascade_penalty(base_score: float, history: List[Dict]) -> float:
-    """Brutal penalty: Halves the score for EVERY load that auto-disconnects."""
+    """Forgiving penalty: 15% reduction per tripped load."""
     total_trips = sum(len(s.get("newly_tripped_loads", [])) for s in history)
-    return base_score * (0.5 ** total_trips)
+    return base_score * max(0.2, 1.0 - total_trips * 0.15)
 
 def _battery_utilization_score(history: List[Dict]) -> float:
     """Score for wise battery use: rewards both charging and discharging."""

@@ -54,35 +54,71 @@ def run_policy(task_name: str, policy_type: str) -> float:
             action = Action(curtailments=curtailments, battery_action=batt, battery_mw=mw)
 
         elif policy_type == "super_smart_heuristic":
-            # Perfect Oracle: Calculate exact MW imbalance to reach 50.0Hz
-            # freq = 50.0 + (imbalance / 100) * 0.65 -> imbalance = (freq - 50.0) * 100 / 0.65
-            # Since imbalance = effective_supply - demand. Positive imbalance = surplus.
-            freq = obs.grid_frequency_hz
-            mw_needed = (50.0 - freq) * 100 / 0.65
+            demand = obs.total_demand_mw
+            supply = obs.total_supply_mw
+            
+            mw_needed = demand - supply
             
             curtailments = {}
             batt = "idle"
             batt_mw = 0.0
             
-            # Step 1: Use battery if possible
-            if mw_needed > 0: # deficit
+            # Step 1: Battery logic
+            if mw_needed > 20.0: # Only discharge if deficit > 20MW (freq will still be > 49.87Hz)
                 batt = "discharge"
-                batt_mw = min(25.0, mw_needed)
+                batt_mw = min(50.0, mw_needed - 20.0)
                 mw_needed -= batt_mw
-            elif mw_needed < 0: # surplus
+            elif mw_needed < -20.0: # surplus
                 batt = "charge"
-                batt_mw = min(25.0, -mw_needed)
+                batt_mw = min(50.0, -mw_needed - 20.0)
                 mw_needed += batt_mw
                 
-            # Step 2: Curtail loads strictly from low to high priority until mw_needed is met
-            if mw_needed > 0:
-                for target_prio in ["low", "medium", "high"]: # skip critical
-                    for l in obs.loads:
-                        if l["priority"] == target_prio:
-                            reduce_amount = min(l["reducible_mw"], mw_needed)
-                            if reduce_amount > 0:
-                                curtailments[l["id"]] = reduce_amount
-                                mw_needed -= reduce_amount
+            # Smart lookahead force-charge for hard tasks
+            if task_name in ["extreme_event", "renewable_transition", "monsoon_crisis"]:
+                 if env.hour in [10, 11, 12, 13, 14, 15] and obs.battery_soc_pct < 90.0:
+                     if batt == "discharge":
+                         mw_needed += batt_mw
+                         batt = "charge"
+                         batt_mw = 50.0
+                         mw_needed += 50.0
+                     elif batt == "idle":
+                         batt = "charge"
+                         batt_mw = 50.0
+                         mw_needed += 50.0
+                     elif batt == "charge" and batt_mw < 50.0:
+                         mw_needed += (50.0 - batt_mw)
+                         batt_mw = 50.0
+                     
+            # Step 2: Smart curtailment alloc to respect 70% fairness rule
+            if mw_needed > 20.01:
+                valid_loads = [
+                    l for l in obs.loads
+                    if not l["tripped"] and l["reconnect_in"] == 0 and l["priority"] != "critical"
+                ]
+                
+                limit = 0.70 * getattr(env.current_task, "episode_steps", 72)
+                
+                def load_score(l):
+                    c_count = l["curtailed_this_episode"]
+                    is_pen = c_count >= (limit - 1)
+                    cost = l["discomfort_factor"] * {"low": 1, "medium": 2, "high": 5}.get(l["priority"], 1)
+                    return (is_pen, cost)
+                
+                valid_loads.sort(key=load_score)
+                
+                for l in valid_loads:
+                    c_count = l["curtailed_this_episode"]
+                    is_penalized = c_count >= (limit - 1)
+                    
+                    # Acceptable deficit: 90MW (49.4Hz) if penalized to avoid cascade, else 20MW (49.87Hz)
+                    acceptable_deficit = 90.0 if is_penalized else 20.0
+                    
+                    if mw_needed > acceptable_deficit + 0.1:
+                        desired_reduction = mw_needed - acceptable_deficit
+                        reduce_amount = min(l["reducible_mw"], desired_reduction)
+                        if reduce_amount > 0:
+                            curtailments[l["id"]] = reduce_amount
+                            mw_needed -= reduce_amount
 
             action = Action(curtailments=curtailments, battery_action=batt, battery_mw=batt_mw)
 

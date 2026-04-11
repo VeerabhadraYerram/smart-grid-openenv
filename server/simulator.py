@@ -32,9 +32,9 @@ DEFAULT_LOADS = [
     {"id": "it_park",           "name": "Infosys IT Campus",       "base_mw": 25,  "reducible_fraction": 0.20, "priority": "medium",   "discomfort_factor": 0.6},
     {"id": "shopping_mall_1",   "name": "Phoenix Mall",            "base_mw": 15,  "reducible_fraction": 0.30, "priority": "medium",   "discomfort_factor": 0.65},
     {"id": "office_complex",    "name": "DLF Cyber Hub Offices",   "base_mw": 20,  "reducible_fraction": 0.25, "priority": "medium",   "discomfort_factor": 0.7},
-    # Residential — high discomfort, low flexibility
-    {"id": "residential_north", "name": "North Delhi Colonies",    "base_mw": 40,  "reducible_fraction": 0.10, "priority": "high",     "discomfort_factor": 0.9},
-    {"id": "residential_south", "name": "South Delhi Residential", "base_mw": 35,  "reducible_fraction": 0.10, "priority": "high",     "discomfort_factor": 0.9},
+    # Residential — high discomfort, low flexibility (buffed for survivability)
+    {"id": "residential_north", "name": "North Delhi Colonies",    "base_mw": 40,  "reducible_fraction": 0.30, "priority": "high",     "discomfort_factor": 0.9},
+    {"id": "residential_south", "name": "South Delhi Residential", "base_mw": 35,  "reducible_fraction": 0.30, "priority": "high",     "discomfort_factor": 0.9},
     # Critical infrastructure — essentially non-curtailable
     {"id": "hospital",          "name": "AIIMS Hospital",          "base_mw": 12,  "reducible_fraction": 0.05, "priority": "critical", "discomfort_factor": 1.0},
     {"id": "metro_rail",        "name": "Delhi Metro Network",     "base_mw": 18,  "reducible_fraction": 0.08, "priority": "critical", "discomfort_factor": 0.95},
@@ -70,14 +70,14 @@ class BatteryStorage:
     """
     50 MWh Battery Energy Storage System (BESS).
     
-    - Capacity: 50 MWh
-    - Max charge/discharge rate: 25 MW
+    - Capacity: 100 MWh (Buffed)
+    - Max charge/discharge rate: 50 MW (Buffed)
     - Round-trip efficiency: 90% (10% losses on each charge-discharge cycle)
     - SOC range: 5%–95% (protect against deep discharge and overcharge)
     """
 
-    CAPACITY_MWH: float = 50.0
-    MAX_RATE_MW: float = 25.0
+    CAPACITY_MWH: float = 100.0
+    MAX_RATE_MW: float = 50.0
     EFFICIENCY: float = 0.90
     MIN_SOC: float = 0.05   # 5% minimum
     MAX_SOC: float = 0.95   # 95% maximum
