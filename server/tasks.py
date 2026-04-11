@@ -78,13 +78,20 @@ def _fairness_score(history: List[Dict], n_steps: int) -> float:
     return max(0.0, 1.0 - violations / 10)  # 10 total loads
 
 def _critical_protection_score(history: List[Dict]) -> float:
+    """Strictly penalise curtailing critical infrastructure (hospital, metro).
+    If critical loads are curtailed in >25% of steps, score drops to near-zero."""
     critical_ids = {"hospital", "metro_rail"}
-    curtailments = 0
+    n = len(history)
+    curtailment_steps = 0
     for step in history:
         for cid in critical_ids:
             if step.get("per_load_curtailments", {}).get(cid, {}).get("actual_mw", 0) > 0:
-                curtailments += 1
-    return max(0.0, 1.0 - curtailments * 0.10)
+                curtailment_steps += 1
+                break  # Count the step once even if both are curtailed
+    ratio = curtailment_steps / max(1, n)
+    if ratio > 0.25:
+        return 0.05  # Near-zero: agent is abusing critical infrastructure
+    return max(0.0, 1.0 - curtailment_steps * 0.15)
 
 def _no_cascade_score(history: List[Dict]) -> float:
     total_trips = sum(len(s.get("newly_tripped_loads", [])) for s in history)
@@ -94,6 +101,38 @@ def _cascade_penalty(base_score: float, history: List[Dict]) -> float:
     """Forgiving penalty: 15% reduction per tripped load."""
     total_trips = sum(len(s.get("newly_tripped_loads", [])) for s in history)
     return base_score * max(0.2, 1.0 - total_trips * 0.15)
+
+def _repetition_penalty(history: List[Dict]) -> float:
+    """Penalise agents that spam the same curtailment action every step.
+    If the same curtailment dict appears 5+ consecutive times, apply a 20% penalty.
+    A real grid operator adapts to changing conditions."""
+    if len(history) < 5:
+        return 1.0  # No penalty for short episodes
+    max_streak = 1
+    current_streak = 1
+    for i in range(1, len(history)):
+        prev = sorted(history[i-1].get("per_load_curtailments", {}).keys())
+        curr = sorted(history[i].get("per_load_curtailments", {}).keys())
+        if prev == curr and len(prev) > 0:
+            current_streak += 1
+            max_streak = max(max_streak, current_streak)
+        else:
+            current_streak = 1
+    if max_streak >= 5:
+        return 0.80  # 20% penalty
+    return 1.0
+
+def _battery_diversity_bonus(history: List[Dict]) -> float:
+    """Small bonus for agents that actually use the battery (charge/discharge).
+    Returns a multiplier: 1.05 if battery used in ≥20% of steps, else 1.0."""
+    n = len(history)
+    battery_steps = sum(
+        1 for s in history
+        if s.get("battery_result", {}).get("battery_action") in ("charge", "discharge")
+    )
+    if battery_steps / max(1, n) >= 0.20:
+        return 1.05  # 5% bonus
+    return 1.0
 
 def _battery_utilization_score(history: List[Dict]) -> float:
     """Score for wise battery use: rewards both charging and discharging."""
@@ -136,7 +175,10 @@ class PeakSurvivalTask(Task):
         stability = _stability_score(episode_history)
         blackout = 1.0 if _blackout_free(episode_history) else 0.0
         base_score = round(0.60 * stability + 0.40 * blackout, 4)
-        return _clamp(_cascade_penalty(base_score, episode_history))
+        score = _cascade_penalty(base_score, episode_history)
+        score *= _repetition_penalty(episode_history)
+        score *= _battery_diversity_bonus(episode_history)
+        return _clamp(score)
 
 
 # ── Medium: Daily Balance ───────────────────────────────────────────────────
@@ -161,7 +203,10 @@ class DailyBalanceTask(Task):
         cost = _cost_score(episode_history, cap_inr=500_000)
         renewable = _renewable_utilization_score(episode_history, target_pct=30.0)
         base_score = round(0.40 * stability + 0.30 * discomfort + 0.20 * cost + 0.10 * renewable, 4)
-        return _clamp(_cascade_penalty(base_score, episode_history))
+        score = _cascade_penalty(base_score, episode_history)
+        score *= _repetition_penalty(episode_history)
+        score *= _battery_diversity_bonus(episode_history)
+        return _clamp(score)
 
 
 # ── Hard: Extreme Weather Event ─────────────────────────────────────────────
@@ -192,7 +237,10 @@ class ExtremeWeatherTask(Task):
             0.30 * stability + 0.25 * fairness + 0.20 * critical +
             0.15 * cost + 0.10 * discomfort, 4
         )
-        return _clamp(_cascade_penalty(base_score, episode_history))
+        score = _cascade_penalty(base_score, episode_history)
+        score *= _repetition_penalty(episode_history)
+        score *= _battery_diversity_bonus(episode_history)
+        return _clamp(score)
 
 
 # ── Medium-Hard: Monsoon Crisis ─────────────────────────────────────────────
@@ -231,7 +279,9 @@ class MonsoonCrisisTask(Task):
         base_score = round(
             0.35 * stability + 0.25 * battery_util + 0.20 * cost + 0.20 * blackout, 4
         )
-        return _clamp(_cascade_penalty(base_score, episode_history))
+        score = _cascade_penalty(base_score, episode_history)
+        score *= _repetition_penalty(episode_history)
+        return _clamp(score)
 
 
 # ── Expert: Renewable Transition ─────────────────────────────────────────────
@@ -279,7 +329,10 @@ class RenewableTransitionTask(Task):
             0.25 * stability + 0.25 * renewable + 0.20 * fairness +
             0.15 * cost + 0.15 * no_cascade, 4
         )
-        return _clamp(_cascade_penalty(base_score, episode_history))
+        score = _cascade_penalty(base_score, episode_history)
+        score *= _repetition_penalty(episode_history)
+        score *= _battery_diversity_bonus(episode_history)
+        return _clamp(score)
 
 
 # ── Task registry ────────────────────────────────────────────────────────────

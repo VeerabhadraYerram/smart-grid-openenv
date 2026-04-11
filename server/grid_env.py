@@ -112,6 +112,20 @@ class SmartGridEnv(Environment):
         if self.done:
             return self._make_observation(0.0, {}, reward=0.0, done=True)
 
+        # ── Input sanitization (prevents exploits and crashes) ──
+        # Clamp battery_mw to valid range
+        action.battery_mw = max(0.0, min(50.0, float(action.battery_mw or 0)))
+        # Default unknown battery action to idle
+        if action.battery_action not in ("charge", "discharge", "idle"):
+            action.battery_action = "idle"
+        # Filter curtailments: only keep valid load IDs with positive numeric values
+        valid_load_ids = {l["id"] for l in self.simulator.loads}
+        action.curtailments = {
+            k: max(0.0, float(v))
+            for k, v in (action.curtailments or {}).items()
+            if k in valid_load_ids and isinstance(v, (int, float)) and v > 0
+        }
+
         self._state.step_count += 1
 
         # 1. Advance weather every 4 steps (~every 4 hours)

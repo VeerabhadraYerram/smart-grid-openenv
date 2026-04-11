@@ -17,46 +17,52 @@ base_path: /web
 
 ---
 
-## 🌍 The Problem Statement
+## 🌍 The Problem
 
-Every city grid faces a major crisis daily: **unpredictable demand vs. intermittent renewables**.
+Every city grid faces a daily crisis: **unpredictable demand vs. intermittent renewables**.
 
-Imagine it's 6:00 PM on a 45°C day in Delhi. 20 million ACs switch on. Solar drops to zero. Grid frequency plummets. **In 15 minutes, there will be a blackout unless someone acts.**
+Imagine: 6:00 PM, 45°C in Delhi. 20 million ACs switch on. Solar drops to zero. Grid frequency plummets. **Blackout in 15 minutes unless someone acts.**
 
-Massive power operators like **Adani Power**, **Tata Power**, or the **Power System Operation Corporation (POSOCO) in India** face this exact challenge. They have to balance the electricity flow through the grid to keep it exactly at **50Hz**. If people use more power than generators produce, the frequency drops. If the frequency drops too low, transformers explode and the entire city goes dark.
+Operators like **POSOCO**, **Tata Power**, and **Adani Power** balance the grid at exactly **50Hz**. If demand exceeds supply, frequency drops. If it drops too low, transformers explode and the city goes dark.
 
-Currently, automated systems use complex numeric models — they balance numbers, but fail to understand real-world context: an algorithm doesn't inherently understand that turning off a **Hospital** is a catastrophe, while briefly reducing a **Steel Plant** is acceptable.
+Existing RL environments (CityLearn, Grid2Op) use **flat numeric vectors** — arrays like `[50.2, 280.3, 45.1]`. An LLM can't reason about those numbers.
+
+**We built the first demand response simulator that speaks natural language.**
 
 ---
 
-## 💎 Our Unique Novelty: An Agentic Approach
-
-Demand response isn't a new problem. Existing RL environments for power grids (like CityLearn or Grid2Op) use **flat numeric vectors** — arrays like `[50.2, 280.3, 45.1]`.
-
-**This makes them impossible for Large Language Models (LLMs) to reason about.**
-
-**Our environment is the very first demand response simulator natively designed for LLM agents.** Here's what makes it a breakthrough:
+## 💎 What Makes This Different
 
 ### 1. Situation Reports, Not Vectors
-Instead of obscure numbers, the agent receives a naturally written **Strategic Briefing**:
-> *"⚠️ WARNING: Grid frequency at 49.6Hz and falling. Evening peak in 45 minutes. Solar output declining. Steel plant running at full capacity (80MW reducible by 32MW). Hospital on backup generator — DO NOT curtail."*
+The agent receives strategic briefings, not numbers:
+
+```
+⚠️ WARNING: Frequency at 49.6Hz and falling.
+📊 SUPPLY vs DEMAND:
+  Supply:  245.3MW  (Thermal: 80MW | Solar: 42.1MW ↘ declining | Wind: 23.2MW)
+  Demand:  312.8MW ↗ RISING
+  Balance: -67.5MW ← DEFICIT — grid frequency will fall!
+
+🔋 BATTERY: 45.0/100 MWh (45% charged) | Can discharge up to 50MW for 0.8h
+
+⚡ CASCADING RISK: 0 loads tripped. Auto-disconnect triggers at <49.2Hz.
+
+🏭 LOAD STATUS:
+  [LOW] Tata Steel Works: 80MW (can reduce 32MW, curtailed 0x)
+  [CRI] AIIMS Hospital: 12MW ⛔ DO NOT CURTAIL
+```
 
 ### 2. Cascading Failure Mechanics
-If grid frequency falls below **49.0Hz**, loads automatically start disconnecting in a brutal cascade. The agent must think ahead: *"If I don't curtail the factories now, the hospital goes dark in 3 steps."*
+If frequency falls below **49.0Hz**, loads auto-disconnect in a cascade. The agent must think ahead: *"If I don't curtail factories now, the hospital goes dark in 3 steps."*
 
 ### 3. Constrained Ethical Decision-Making
-The grader strictly evaluates the agent on **fairness** and **Critical Infrastructure Protection**. An agent that keeps the grid alive but repeatedly shuts down hospitals will spectacularly fail.
+The grader strictly evaluates **fairness** and **critical infrastructure protection**. An agent that keeps the grid alive but repeatedly shuts down hospitals will fail spectacularly.
 
----
-
-## 🎮 How the Solution Works
-
-The AI operator has two main tools to combat a grid crisis:
-
-1. **Load Curtailment:** Selectively instructing specific facilities (like factories) to lower their power usage.
-2. **Battery Energy Storage (BESS):** Managing a massive 50MWh grid-scale battery — charge during cheap off-peak hours, discharge during emergencies.
-
-The AI must coordinate these actions over an extended timeframe while navigating weather, consumer demands, and economic cost.
+### 4. Exploit-Resistant Grading
+- **Anti-repetition**: Agents that spam the same action get penalized
+- **Battery diversity**: Agents rewarded for using the BESS strategically
+- **Critical protection**: Curtailing hospitals in >25% of steps → near-zero score
+- **Cascade penalty**: Every auto-disconnected load halves the score
 
 ---
 
@@ -72,14 +78,28 @@ The AI must coordinate these actions over an extended timeframe while navigating
 
 ---
 
-## 🚀 Quick Start
+## 🎮 Quick Start
 
-### Connect to the Live Space
+### Docker (fastest)
+```bash
+docker build -t smart-grid .
+docker run -d -p 7860:7860 smart-grid
+# Open http://localhost:7860 → click "Custom" tab for the Control Room
+```
+
+### Python (local)
+```bash
+git clone https://github.com/Schrodingerscat07/smart-grid-openenv.git
+cd smart-grid-openenv
+pip install -e .
+uvicorn server.app:app --host 0.0.0.0 --port 7860
+```
+
+### Connect via Code
 ```python
 from client import SmartGridEnv
 from models import Action
 
-# Connect to the running HF Space
 async with SmartGridEnv(base_url="https://Maybe-Heisenberg-07-smart-grid-demand-response.hf.space") as env:
     result = await env.reset()
     print(result.observation.situation_report)
@@ -91,24 +111,7 @@ async with SmartGridEnv(base_url="https://Maybe-Heisenberg-07-smart-grid-demand-
     ))
 ```
 
-### Run Locally
-```bash
-# Clone the repo
-git clone https://github.com/Schrodingerscat07/smart-grid-openenv.git
-cd smart-grid-openenv
-
-# Install dependencies
-pip install -e .
-
-# Start the server
-uvicorn server.app:app --host 0.0.0.0 --port 7860
-
-# Or use Docker
-docker build -t smart-grid .
-docker run -d -p 7860:7860 smart-grid
-```
-
-### Install as a Package
+### Install as Package
 ```bash
 pip install git+https://huggingface.co/spaces/Maybe-Heisenberg-07/smart-grid-demand-response
 ```
@@ -117,14 +120,16 @@ pip install git+https://huggingface.co/spaces/Maybe-Heisenberg-07/smart-grid-dem
 
 ## 🏗️ Architecture
 
+![Architecture](architecture.png)
+
 ```
 smart-grid-openenv/            # Repo Root = OpenEnv Environment
 ├── server/
-│   ├── app.py                 # FastAPI entry point (create_app)
-│   ├── grid_env.py            # Main Environment class (reset/step/state)
-│   ├── simulator.py           # Physics engine (frequency, demand, weather)
-│   ├── tasks.py               # 5 task definitions + deterministic graders
-│   └── weather.py             # Weather system (heatwave, monsoon, etc.)
+│   ├── app.py                 # FastAPI entry + Gradio Control Room UI
+│   ├── grid_env.py            # Main Environment class (reset/step/grade)
+│   ├── simulator.py           # Physics engine (frequency, demand, weather, BESS)
+│   ├── tasks.py               # 5 task definitions + multi-objective graders
+│   └── weather.py             # Markov weather system (heatwave, monsoon, etc.)
 ├── models.py                  # Pydantic Action & Observation types
 ├── client.py                  # WebSocket client (EnvClient subclass)
 ├── inference.py               # LLM baseline agent (Phase 2 compliant)
@@ -135,22 +140,25 @@ smart-grid-openenv/            # Repo Root = OpenEnv Environment
 
 ---
 
-## 🕵️ Judging & Testing Guide
+## 🕵️ Judge's Challenge: Break the Grid
 
-If you are evaluating this project, try to "break" the grid to see our physics engine at work:
+Open the **Web UI** → click the **Custom** tab → try these:
 
-### The Blackout Challenge
-1. Open the **Web UI** → select **"extreme_event"**.
-2. Click **Reset**.
-3. **Do absolutely nothing.** Leave curtailment at `{}` and battery on `idle`.
-4. Click **Step** continuously.
-5. Watch the frequency plummet, cascading failures trigger, and the **Situation Report** describe neighborhoods going dark!
+### 🔥 The Blackout Challenge
+1. Select **"Extreme Heatwave"** → click **Initialize**
+2. Leave curtailment at `{}` and battery on `idle`
+3. Click **Auto ×5** repeatedly
+4. Watch frequency plummet, cascading failures trigger, and loads go dark!
+
+### 🤖 The Exploit Test
+Try to game the grader:
+- Spam `{"steel_plant": 32}` every step → **Anti-repetition penalty kicks in**
+- Curtail `{"hospital": 0.6}` → **Critical infrastructure penalty destroys your score**
+- Do nothing for 72 steps → **Cascade penalty from auto-disconnects**
 
 ---
 
 ## 📊 Proof of Variance
-
-A good environment must have score variance. We mathematically proved the solvability:
 
 | Strategy | Score | Outcome |
 | :--- | :---: | :--- |
@@ -170,5 +178,7 @@ Incompetent agents crash and burn; intelligent agents thrive. ⚡
 | `API_BASE_URL` | Yes | LLM API endpoint |
 | `MODEL_NAME` | Yes | Model identifier for inference |
 | `HF_TOKEN` | Yes | Hugging Face / API key |
+
+---
 
 **Built for the [Meta PyTorch Hackathon × Scaler](https://pytorch.org/) — OpenEnv Track.** ⚡

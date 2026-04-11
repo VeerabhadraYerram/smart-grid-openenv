@@ -510,7 +510,7 @@ class GridSimulator:
                 continue
 
             reduction = curtailments.get(load["id"], 0.0)
-            if reduction <= 0:
+            if not isinstance(reduction, (int, float)) or reduction <= 0:
                 continue
 
             max_reducible = load["base_mw"] * load["reducible_fraction"]
@@ -560,6 +560,11 @@ class GridSimulator:
         Where positive net_grid_effect_mw means supply was ADDED (discharge).
         Negative means demand was ADDED (charge).
         """
+        # Sanitize battery action
+        if battery_action not in ("charge", "discharge", "idle"):
+            battery_action = "idle"
+        battery_mw = max(0.0, float(battery_mw)) if isinstance(battery_mw, (int, float)) else 0.0
+
         soc_before = self.battery.soc_pct
         net_mw = 0.0
         actual_mw = 0.0
