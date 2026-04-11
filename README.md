@@ -1,10 +1,6 @@
 ---
 title: Smart Grid Demand Response
-emoji: ⚡
-colorFrom: indigo
-colorTo: blue
 sdk: docker
-pinned: false
 base_path: /web
 ---
 
