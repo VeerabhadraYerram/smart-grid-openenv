@@ -12,6 +12,19 @@ base_path: /web
 
 ---
 
+## 🌍 The Problem
+
+India's power grid serves **1.4 billion people** at exactly **50Hz**. If frequency drops even 1Hz below normal, transformers blow and cities go dark.
+
+**Real-world scale of the crisis:**
+- **2024 Delhi Heatwave:** Peak demand hit **8,302 MW** — grid operators manually rotated blackouts across 15 districts for 6 hours *(BSES Rajdhani, June 2024)*
+- **2022 India Power Crisis:** Coal shortages left **16 of 28 states** with rolling blackouts, affecting **700M+ people** *(IEA World Energy Outlook 2022)*
+- **Cost of blackouts:** India loses an estimated **₹1.5 lakh crore ($18B) annually** to unplanned outages *(CEA Report 2023)*
+
+Existing RL environments (CityLearn, Grid2Op) use flat numeric vectors — arrays like `[50.2, 280.3, 45.1]`. **An LLM can't reason about those.** We built the first simulator that speaks natural language.
+
+---
+
 ## 🎯 The Innovation: LLM-Native Situation Reports
 
 Most RL environments for energy (CityLearn, Grid2Op) provide observations as flat numeric vectors (e.g., `[50.2, 0.45, 120.5]`). This restricts their use to narrow deep-learning models like PPO or SAC.
@@ -24,19 +37,6 @@ Most RL environments for energy (CityLearn, Grid2Op) provide observations as fla
 | **Context** | None (must be learned) | Understands "Hospital" priority vs "Steel Plant" |
 | **Strategy** | Hardcoded/Learned | Flexible, zero-shot ethical trade-offs |
 | **Fail-safe** | Numeric thresholds | Qualitative reasoning about cascading risk |
-
----
-
-## 🌍 The Problem
-
-India's power grid serves **1.4 billion people** at exactly **50Hz**. If frequency drops even 1Hz below normal, transformers blow and cities go dark.
-
-**Real-world scale of the crisis:**
-- **2024 Delhi Heatwave:** Peak demand hit **8,302 MW** — grid operators manually rotated blackouts across 15 districts for 6 hours *(BSES Rajdhani, June 2024)*
-- **2022 India Power Crisis:** Coal shortages left **16 of 28 states** with rolling blackouts, affecting **700M+ people** *(IEA World Energy Outlook 2022)*
-- **Cost of blackouts:** India loses an estimated **₹1.5 lakh crore ($18B) annually** to unplanned outages *(CEA Report 2023)*
-
-Existing RL environments (CityLearn, Grid2Op) use flat numeric vectors — arrays like `[50.2, 280.3, 45.1]`. **An LLM can't reason about those.** We built the first simulator that speaks natural language.
 
 ---
 
