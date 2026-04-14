@@ -4,9 +4,13 @@ sdk: docker
 base_path: /web
 ---
 
+
+[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue)](https://huggingface.co/spaces/Maybe-Heisenberg-07/smart-grid-demand-response)
+[![OpenEnv Compliant](https://img.shields.io/badge/OpenEnv-Compliant-green)](https://github.com/the-open-env/openenv)
+
 > [!TIP]
 > **Judge's Quick Guide**
-> 1. Click the **Custom** tab above to open the professional Control Room UI.
+> 1. Click the **Custom** tab on the [Hugging Face Space](https://huggingface.co/spaces/Maybe-Heisenberg-07/smart-grid-demand-response) to open the professional Control Room UI.
 > 2. View the **Situation Report** — our core innovation that enables LLMs to reason about grid physics using natural language.
 > 3. Try the **"Break the Grid"** challenge in the README below to see cascading failure mechanics in action.
 
@@ -40,27 +44,14 @@ Most RL environments for energy (CityLearn, Grid2Op) provide observations as fla
 
 ---
 
-## 💎 How It Works — Simplified
+## 💎 How It Works
 
-```
-┌─────────────┐    Situation Report     ┌──────────────────┐
-│  LLM Agent  │ ◄────────────────────── │  Smart Grid Env  │
-│  (any model)│                         │                  │
-│             │ ──────────────────────► │  Physics Engine  │
-└─────────────┘    Action (JSON)        │  10 loads, BESS  │
-                                        │  Weather, Freq   │
-   "Curtail steel_plant by 15MW         └──────────────────┘
-    and discharge battery 20MW"                 │
-                                          ┌─────┴─────┐
-                                          │ Grader    │
-                                          │ Score 0→1 │
-                                          └───────────┘
-```
+![Architecture Diagram](architecture.png)
 
-**Instead of numbers**, the agent receives a **strategic briefing:**
+**Instead of numbers**, the agent receives a **strategic briefing (SitRep):**
 > *"⚠️ WARNING: Freq at 49.6Hz and falling. Evening peak in 2h. Solar declining. Steel plant at full capacity (80MW, 32MW reducible). Hospital on backup — DO NOT CURTAIL."*
 
-The agent responds with **natural language-style JSON actions**: which loads to curtail, whether to charge/discharge the 100MWh battery. The grader evaluates on **stability × cost × fairness × ethics** simultaneously.
+The agent responds with **natural-language-style JSON actions**: specifying which loads to curtail and battery operations (charge/discharge). The grader evaluates performance based on **stability, cost, fairness, and ethics**.
 
 ---
 
@@ -108,6 +99,27 @@ The agent responds with **natural language-style JSON actions**: which loads to 
 **How an RL-trained agent saves the day:** The agent learns to forecast weather transitions (the Markov weather engine) and pre-positions battery state. Before a cloudy-to-storm transition, it charges the battery. Before storm-to-clear, it reduces curtailments. Over 72 steps, it maintains fairness across all 10 loads (Gini coefficient < 0.3).
 
 **Real-world impact:** India's target of **500GW renewable energy by 2030** *(National Electricity Plan 2023)* requires grid operators to manage intermittency without coal backup. This scenario directly trains agents for that future. McKinsey estimates that **AI-optimized grid management could save India $12B annually** by 2030 in reduced curtailment waste and avoided blackouts.
+
+---
+
+## 🚀 Simulation Showcase
+
+Here is a glimpse of the environment in action, showing how the **Situation Report** enables zero-shot reasoning.
+
+**Environment Observation (SitRep):**
+> "🕒 Time: 18:00 (Evening Peak). ⚠️ WARNING: Grid frequency is 49.75Hz and declining. AC demand is surging. Solar generation has dropped to 5%. Battery SOC is 85%. Steel Plant is consuming 50MW (20MW reducible)."
+
+**Agent Action (JSON):**
+```json
+{
+  "curtailments": {
+    "steel_plant": 15.0
+  },
+  "battery_action": "discharge",
+  "battery_mw": 20.0
+}
+```
+**Result:** Frequency stabilized to 49.98Hz. Critical loads (Hospital, Metro) maintained at 100% supply.
 
 ---
 
